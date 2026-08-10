@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 const TOKEN_KEY = 'placement_admin_token'
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export function useAuth() {
   const router = useRouter()

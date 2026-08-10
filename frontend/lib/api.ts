@@ -1,7 +1,8 @@
 // lib/api.ts — typed API client with JWT auth
 
 const TOKEN_KEY = 'placement_admin_token'
-const BASE = '/api/admin'
+const API_ROOT = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const BASE = `${API_ROOT}/api/admin`
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null
