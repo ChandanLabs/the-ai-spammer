@@ -8,6 +8,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from backend.models import get_db, HiringDrive, Student, NudgeLog, StudentStatus
+from backend.routers.auth import get_current_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -84,7 +85,7 @@ class NudgeLogOut(BaseModel):
 # ─── Stats ───────────────────────────────────────────────────────────────────
 
 @router.get("/stats", response_model=DashboardStats)
-def get_stats(db: Session = Depends(get_db)):
+def get_stats(db: Session = Depends(get_db), _: str = Depends(get_current_admin)):
     from datetime import date
     total = db.query(func.count(Student.id)).scalar() or 0
     registered = db.query(func.count(Student.id)).filter(Student.status == StudentStatus.REGISTERED).scalar() or 0
@@ -114,12 +115,12 @@ def get_stats(db: Session = Depends(get_db)):
 # ─── Hiring Drives ───────────────────────────────────────────────────────────
 
 @router.get("/drives", response_model=List[DriveOut])
-def list_drives(db: Session = Depends(get_db)):
+def list_drives(db: Session = Depends(get_db), _: str = Depends(get_current_admin)):
     return db.query(HiringDrive).order_by(HiringDrive.created_at.desc()).all()
 
 
 @router.post("/drives", response_model=DriveOut, status_code=201)
-def create_drive(payload: DriveCreate, db: Session = Depends(get_db)):
+def create_drive(payload: DriveCreate, db: Session = Depends(get_db), _: str = Depends(get_current_admin)):
     import uuid
     drive = HiringDrive(id=str(uuid.uuid4()), **payload.model_dump())
     db.add(drive)
@@ -129,7 +130,7 @@ def create_drive(payload: DriveCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/drives/{drive_id}", response_model=DriveOut)
-def update_drive(drive_id: str, payload: dict, db: Session = Depends(get_db)):
+def update_drive(drive_id: str, payload: dict, db: Session = Depends(get_db), _: str = Depends(get_current_admin)):
     drive = db.query(HiringDrive).filter(HiringDrive.id == drive_id).first()
     if not drive:
         raise HTTPException(status_code=404, detail="Drive not found")
@@ -141,7 +142,7 @@ def update_drive(drive_id: str, payload: dict, db: Session = Depends(get_db)):
 
 
 @router.delete("/drives/{drive_id}", status_code=204)
-def delete_drive(drive_id: str, db: Session = Depends(get_db)):
+def delete_drive(drive_id: str, db: Session = Depends(get_db), _: str = Depends(get_current_admin)):
     drive = db.query(HiringDrive).filter(HiringDrive.id == drive_id).first()
     if not drive:
         raise HTTPException(status_code=404, detail="Drive not found")
@@ -156,6 +157,7 @@ async def upload_csv(
     file: UploadFile = File(...),
     drive_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    _: str = Depends(get_current_admin),
 ):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files accepted")
@@ -245,6 +247,7 @@ def list_students(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
+    _: str = Depends(get_current_admin),
 ):
     q = db.query(Student)
     if drive_id:
@@ -258,7 +261,7 @@ def list_students(
 
 
 @router.patch("/students/{student_id}", response_model=StudentOut)
-def update_student(student_id: str, payload: StudentUpdate, db: Session = Depends(get_db)):
+def update_student(student_id: str, payload: StudentUpdate, db: Session = Depends(get_db), _: str = Depends(get_current_admin)):
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -277,6 +280,7 @@ def list_logs(
     student_id: Optional[str] = Query(None),
     limit: int = 100,
     db: Session = Depends(get_db),
+    _: str = Depends(get_current_admin),
 ):
     from sqlalchemy.orm import joinedload
     q = db.query(NudgeLog).options(joinedload(NudgeLog.student))
@@ -290,7 +294,7 @@ def list_logs(
 # ─── Manual Nudge Trigger ────────────────────────────────────────────────────
 
 @router.post("/nudge/trigger")
-def trigger_nudge():
+def trigger_nudge(_: str = Depends(get_current_admin)):
     from backend.services.scheduler import run_nudge_job
     run_nudge_job()
     return {"status": "ok", "message": "Nudge job triggered"}

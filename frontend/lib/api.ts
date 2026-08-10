@@ -1,12 +1,30 @@
-// lib/api.ts — typed API client
+// lib/api.ts — typed API client with JWT auth
 
+const TOKEN_KEY = 'placement_admin_token'
 const BASE = '/api/admin'
 
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(TOKEN_KEY)
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-    ...init,
-  })
+  const token = getToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string>),
+  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${BASE}${path}`, { ...init, headers })
+
+  if (res.status === 401) {
+    // Token expired — clear it and redirect to login
+    localStorage.removeItem(TOKEN_KEY)
+    if (typeof window !== 'undefined') window.location.href = '/login'
+    throw new Error('Session expired. Please log in again.')
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(err.detail || `HTTP ${res.status}`)
@@ -14,6 +32,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 204) return undefined as T
   return res.json()
 }
+
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -106,7 +125,17 @@ export const api = {
     const fd = new FormData()
     fd.append('file', file)
     const qs = drive_id ? `?drive_id=${drive_id}` : ''
-    const res = await fetch(`${BASE}/upload-csv${qs}`, { method: 'POST', body: fd })
+    const token = getToken()
+    const res = await fetch(`${BASE}/upload-csv${qs}`, {
+      method: 'POST',
+      body: fd,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (res.status === 401) {
+      localStorage.removeItem(TOKEN_KEY)
+      if (typeof window !== 'undefined') window.location.href = '/login'
+      throw new Error('Session expired.')
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }))
       throw new Error(err.detail || `HTTP ${res.status}`)

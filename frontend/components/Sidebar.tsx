@@ -4,8 +4,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, Briefcase, MessageSquare,
-  Bot, Zap, ChevronRight
+  Bot, Zap, ChevronRight, LogOut
 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 
 const nav = [
   { href: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
@@ -16,6 +17,10 @@ const nav = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { logout, isAuthenticated } = useAuth()
+
+  // Don't render the sidebar on the login page
+  if (pathname === '/login') return null
 
   return (
     <aside className="w-64 min-h-screen bg-surface-card border-r border-surface-border flex flex-col shrink-0">
@@ -57,14 +62,26 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-4 border-t border-surface-border">
+      <div className="px-4 py-4 border-t border-surface-border space-y-3">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-slow" />
           <span className="text-xs text-emerald-400 font-medium">Bot Active</span>
           <Zap className="w-3 h-3 text-emerald-400 ml-auto" />
         </div>
-        <p className="text-xs text-slate-600 text-center mt-3">v1.0.0 — Placement Nudge</p>
+
+        {isAuthenticated && (
+          <button
+            id="sidebar-logout"
+            onClick={logout}
+            className="btn-danger w-full justify-center btn-sm"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Sign Out
+          </button>
+        )}
+        <p className="text-xs text-slate-600 text-center">v2.0.0 — Placement Nudge</p>
       </div>
     </aside>
   )
 }
+

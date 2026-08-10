@@ -49,7 +49,9 @@ class Student(Base):
 
     telegram_chat_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     status: Mapped[StudentStatus] = mapped_column(
-        Enum(StudentStatus), default=StudentStatus.PENDING, nullable=False
+        Enum(StudentStatus, native_enum=False, create_constraint=False),
+        default=StudentStatus.PENDING,
+        nullable=False,
     )
     last_nudge_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     nudge_count: Mapped[int] = mapped_column(Integer, default=0)
